@@ -21,7 +21,10 @@
 
 """ Classes containing Run Data """
 
-from GPX_Parser import GPX_Parser, PREF_DUNIT
+from RunkeeperAnalyze.GPX_Parser import GPX_Parser, PREF_DUNIT
+
+WALKING_SPEED = 1.8 # [m/s] running if faster, walking if slower
+PAUSE_TIME = 60 # secs of walking indicating a break (new segment)
 
 class Segment:
     """ Class that represents on Run segment """
@@ -103,5 +106,39 @@ class Run:
     def average_pace(self, tunit='min', dunit=PREF_DUNIT):
         """ Return the average speed over active periods """
         return  self.active_time(unit=tunit) / self.active_distance(unit=dunit)
+    def segmentize(self):
+        """ Create segments based on heuristics """
+        segments = self.segments
+        self.segments = []
+        for segment in segments:
+            self.segments += segmentize(segment)
+
+
+def segmentize(segment, walking_speed=WALKING_SPEED, pause_time=PAUSE_TIME):
+    """ Split on segment into several, return array of segments """
+    result = [Segment(),]
+    marked_trackpoint = segment.trackpoints[0]
+    result[-1].trackpoints.append(marked_trackpoint)
+    in_segment = True
+    tp_buffer = [] # buffer for trackpoints we're undecided about
+    for i in xrange(1, len(segment.trackpoints)):
+        if (segment.trackpoints[i].speed_to(segment.trackpoints[i-1],
+        dunit='meter', tunit='sec') > walking_speed):
+            marked_trackpoint = segment.trackpoints[i]
+            in_segment = True
+            result[-1].trackpoints += tp_buffer
+            tp_buffer = []
+            result[-1].trackpoints.append(marked_trackpoint)
+        else: # we're walking ...
+            if (marked_trackpoint.time_to(segment.trackpoints[i])
+            > pause_time):
+                # ... for longer than is acceptable
+                tp_buffer = []
+                if in_segment:
+                    result.append(Segment())
+                    in_segment = False
+            else:
+                tp_buffer.append(segment.trackpoints[i])
+    return result
 
 
