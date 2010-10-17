@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 ############################################################################
-#    Copyright (C) 2008 by Michael Goerz                                   #
+#    Copyright (C) 2010 by Michael Goerz                                   #
 #    http://michaelgoerz.net                                               #
 #                                                                          #
 #    This program is free software; you can redistribute it and/or modify  #
@@ -29,10 +29,11 @@ from math import pi, sin, cos, tan, atan, sqrt, asin, atan2
 EARTH_MAJOR_AXIS = 6378388
 EARTH_MINOR_AXIS = 6356911.946
 
-DISTANCE = {'m' : 1, 'km' : 1000, 'miles' : 1609.344, 'mile': 1609.344}
-TIMES = {'min':60, 'hour': 3600, 'day' : 86400}
+DISTANCE = {'m' : 1, 'meter' : 1, 'km' : 1000, 'miles' : 1609.344,
+            'mile': 1609.344}
+TIMES = {'s' : 1, 'sec': 1, 'min': 60, 'hour': 3600, 'day' : 86400}
 
-PREF_DUNIT = 'km'
+PREF_DUNIT = 'km' # set this to 'miles' if you're in the US
 
 
 class Trackpoint:
@@ -51,34 +52,38 @@ class Trackpoint:
     def time_str(self):
         """ Return string for the Trackpoint's timestamp """
         return time.ctime(self.timestamp)
-    def time_to(self, trackpoint):
-        """ Calculated the time (in seconds) between this trackpoint and
-            another one
-        """
-        return abs(self.timestamp - trackpoint.timestamp)
-    def speed_to(self, trackpoint, dunit=PREF_DUNIT, tunit='hour', pause=0):
+    def time_to(self, trackpoint, unit='sec'):
+        """ Calculated the time between this trackpoint and another one """
+        return abs(self.timestamp - trackpoint.timestamp) / TIMES[unit]
+    def speed_to(self, trackpoint, dunit=PREF_DUNIT, tunit='hour', pause=0,
+                 skipped=0):
         """ Calculate speed between this trackpoint and another, in
             dunit/tunit. The time period used for the calculation is the
             difference between the timestamps, reduced by pause (in seconds)
+            The distance used for the calculation is the distance between the
+            trackpoints, reduced by skipped (in meters).
         """
         time_diff = self.time_to(trackpoint) - pause
-        dist_diff = self.distance_to(trackpoint)
+        dist_diff = self.distance_to(trackpoint) - skipped
         try:
             return (TIMES[tunit] * dist_diff ) / (DISTANCE[dunit] * time_diff)
         except ZeroDivisionError:
             return 0.0
-    def pace_to(self, trackpoint, dunit=PREF_DUNIT, tunit='min', pause=0):
+    def pace_to(self, trackpoint, dunit=PREF_DUNIT, tunit='min', pause=0,
+                skipped=0):
         """ Calculate pace between this trackpoint and another, in
             tunit/dunit. The time period used for the calculation is the
-            difference between the timestamps, reduced by pause (in seconds)
+            difference between the timestamps, reduced by pause (in seconds).
+            The distance used for the calculation is the distance between the
+            trackpoints, reduced by skipped (in meters).
         """
         time_diff = self.time_to(trackpoint) - pause
-        dist_diff = self.distance_to(trackpoint)
+        dist_diff = self.distance_to(trackpoint) - skipped
         try:
             return (DISTANCE[dunit] * time_diff) / (TIMES[tunit] * dist_diff )
         except ZeroDivisionError:
             return 0.0
-    def distance_to(self, trackpoint, use_elevation=True, unit='m'):
+    def distance_to(self, trackpoint, use_elevation=True, unit='meter'):
         """ Calculate the distance to another trackpoint """
         # adapted from
         # http://www.mathworks.com/matlabcentral/fileexchange/5379
