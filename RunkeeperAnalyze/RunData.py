@@ -21,13 +21,29 @@
 
 """ Classes containing Run Data """
 
-
-from GPX_Parser import GPX_Parser
+from GPX_Parser import GPX_Parser, PREF_DUNIT
 
 class Segment:
     """ Class that represents on Run segment """
     def __init__(self):
         self.trackpoints = []
+    def total_distance(self, unit='meter'):
+        """ Return the total distance covered in the segment
+        """
+        result = 0
+        for i in xrange(1, len(self.trackpoints)):
+            result = result + self.trackpoints[i].distance_to(
+                              self.trackpoints[i-1], unit=unit)
+        return result
+    def total_time(self, unit='sec'):
+        """ Return the total time the segment took """
+        return self.trackpoints[0].time_to(self.trackpoints[-1], unit=unit)
+    def average_speed(self, dunit=PREF_DUNIT, tunit='hour'):
+        """ Return the average speed over the segment """
+        return self.total_distance(unit=dunit) / self.total_time(unit=tunit)
+    def average_pace(self, tunit='min', dunit=PREF_DUNIT):
+        """ Return the average speed over the segment """
+        return  self.total_time(unit=tunit) / self.total_distance(unit=dunit)
 
 
 class Run:
@@ -44,33 +60,48 @@ class Run:
                 self.segments.append(Segment())
                 for trackpoint in self._parser:
                     self.segments[seg].trackpoints.append(trackpoint)
-
-    def total_distance(self):
-        """ Return the total distance (in m) covered in the run """
-        pass
-    def total_time(self):
+    def pause_time(self, unit='sec'):
+        """ Return the total number of seconds not spent running (i.e. time
+            spent between segments)
+        """
+        result = 0
+        for i in xrange(1, len(self.segments)):
+            result = result + self.segments[i].trackpoints[0].time_to(
+                     self.segments[i-1].trackpoints[-1], unit=unit)
+        return result
+    def skipped_distance(self, unit='meter'):
+        """ Return the total distance not spent running (i.e.  distance skipped
+            between segments)
+        """
+        result = 0
+        for i in xrange(1, len(self.segments)):
+            result = result + self.segments[i].trackpoints[0].distance_to(
+                     self.segments[i-1].trackpoints[-1], unit=unit)
+        return result
+    def total_distance(self, unit='meter'):
+        """ Return the total distance covered in the run, including inactive
+            periods
+        """
+        return self.active_distance(unit=unit) \
+               + self.skipped_distance(unit=unit)
+    def total_time(self, unit='sec'):
         """ Return the total time the run took """
-        pass
-    def active_meters(self):
+        return self.segments[0].trackpoints[0].time_to(
+               self.segments[-1].trackpoints[-1], unit=unit)
+    def active_distance(self, unit='meter'):
         """ Return the total distance covered in the run """
-        pass
-    def active_kilometers(self):
+        result = 0
+        for segment in self.segments:
+            result = result + segment.total_distance(unit=unit)
+        return result
+    def active_time(self, unit='second'):
         """ Return the total distance covered in the run """
-        pass
-    def active_miles(self):
-        """ Return the total distance covered in the run """
-        pass
-    def active_time(self):
-        """ Return the total time spent running """
-        pass
-    def average_pace(self, unit='km'):
-        """ Return the average pace in seconds per unit """
-        pass
-    def kilometers(self):
-        """ Return a tuple of Runs, one for each active kilometer """
-        pass
-    def miles(self):
-        """ Return a tuple of Runs, one for each active mile """
-        pass
+        return self.total_time(unit=unit) - self.pause_time(unit=unit)
+    def average_speed(self, dunit=PREF_DUNIT, tunit='hour'):
+        """ Return the average speed over active periods """
+        return self.active_distance(unit=dunit) / self.active_time(unit=tunit)
+    def average_pace(self, tunit='min', dunit=PREF_DUNIT):
+        """ Return the average speed over active periods """
+        return  self.active_time(unit=tunit) / self.active_distance(unit=dunit)
 
 
